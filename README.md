@@ -10,7 +10,7 @@ _En este repositorio se presenta un análisis sobre un conjunto de datos para pr
 _La distribución de archivos es la siguiente._
 * **Memoria.pdf**: Contiene la respuesta a las preguntas planteadas
 * **dataset**: Contiene el dataset final obtenido tras la ejecución del programa
-* **source**: 
+* **Código**: 
     * **cfg**: es un notebook que contiene el código desarrollado, describiendo los pasos seguidos.
 
 ## Enlace al vídeo de presentación 📹
