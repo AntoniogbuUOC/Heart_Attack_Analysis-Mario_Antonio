@@ -9,7 +9,8 @@ _En este repositorio se presenta un análisis sobre un conjunto de datos para pr
 ## Archivos 📋
 _La distribución de archivos es la siguiente._
 * **Memoria.pdf**: Contiene la respuesta a las preguntas planteadas
-* **dataset**: Contiene el dataset final obtenido tras la ejecución del programa
+* **heart.csv**: Contiene el dataset inicial a analizar.
+* **heart_output.csv**: Contiene el dataset final obtenido tras la ejecución del programa.
 * **Código**: 
     * **cfg**: es un notebook que contiene el código desarrollado, describiendo los pasos seguidos.
 
