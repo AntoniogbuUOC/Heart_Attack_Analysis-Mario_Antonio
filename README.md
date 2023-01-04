@@ -16,4 +16,4 @@ _La distribución de archivos es la siguiente._
 
 ## Enlace al vídeo de presentación 📹
 
-Enlace al vídeo de presentación: https://drive.google.com/file/d/1hQLvSxBPqZvxMdPnpa3_oVg2tgb7oC3Q/view?usp=share_link 
+Enlace al vídeo de presentación: https://drive.google.com/drive/u/1/folders/18uGOeL5bvys3rr8bbh6OGy2sfED2KusY
