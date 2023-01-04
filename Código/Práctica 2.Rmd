@@ -1,0 +1,487 @@
+---
+title: "Práctica 2"
+author: "Mario García Puebla & Antonio García-Bustamante"
+date: '`r format(Sys.Date(),"%e de %B, %Y")`'
+output: 
+  pdf_document:
+    toc: true
+header-includes:
+  - \usepackage[spanish]{babel}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load_libraries, include=FALSE}
+library(VIM)
+library(vcd)
+library(knitr)
+library(stringr)
+library(ggplot2)
+library(modeest)
+library(gridExtra)
+library(fastDummies)
+library(car)
+library(pROC)
+library(caret)
+library(MASS)
+library(corrplot)
+suppressWarnings(suppressMessages(library(VIM)))
+```
+
+[URL]: https://www.kaggle.com/datasets/rashikrahmanpritom/heart-attack-analysis-prediction-dataset?select=heart.csv/
+
+\newpage
+
+# 1 Descripción del dataset
+
+## 1.1 Variables
+
+Para esta práctica, se va a analizar el dataset [**"Heart Attack Analysis & Prediction Dataset"**][URL]
+obtenido en Kagle. Este conjunto de datos comprende datos de 303 personas distribuidos en 14 columnas. Estas 14 columnas son las siguientes:
+
+- **age**: edad del paciente
+
+- **sex**: género del paciente.
+    - Valor 0: Mujer
+    - Valor 1: Hombre
+
+- **cp**: tipo de dolor en el pecho
+    - Valor 1: angina típica
+    - Valor 2: angina atípica
+    - Valor 3: dolor no anginal
+    - Valor 4: asintomático
+    
+- **trtbps**: presión arterial en reposo en mmHg
+
+- **chol**: colesterol en mg/dl obtenido a través del sensor de IMC
+    
+- **fbs**: glucosa en ayunas > 120 mg/dl (1 = verdadero; 0 = falso)
+   
+- **rest_ecg**: resultados electrocardiográficos en reposo
+    - Valor 0: normal
+    - Valor 1: con anormalidades en la onda ST-T (inversiones de onda T y/o elevación o depresión de ST de > 0,05 mV)
+    - Valor 2: muestra hipertrofia ventricular izquierda probable o definitiva según los criterios de Estes
+
+- **thalach**: frecuencia cardíaca máxima alcanzada
+
+- **exng**: presencia o no de angina inducida por el ejercicio (1 = sí; 0 = no)
+
+- **oldpeak**: Depresión del ST inducida por el ejercicio en relación con el reposo ("ST" se refiere a las posiciones en el gráfico del ECG)
+
+- **slope**: la pendiente del segmento ST de ejercicio máximo 
+    — Valor 0: pendiente descendente
+    - Valor 1: plano
+    - Valor 2: pendiente ascendente
+
+- **caa**: cantidad de vasos mayores (0-3)
+
+- **thal**: Un trastorno sanguíneo llamado talasemia 
+    - Valor 0: NULL
+    - Valor 1: defecto fijo (no hay flujo sanguíneo en alguna parte del corazón)
+    - Valor 2: flujo sanguíneo normal
+    - Valor 3: defecto reversible (se observa un flujo sanguíneo pero no es normal)
+
+- **output**: 0 = menor probabilidad de ataque al corazón, 1 = mayor probabilidad de ataque al corazón
+
+
+## 1.2 Importancia del dataset
+
+Este dataset acerca del análisis y la predicción de ataques cardiacos es fundamental ya que estos ataques son una de las principales causas de muertes en todo el mundo. Si se puede acceder a los valores de las variables necesarias para predecir estos ataques, a través de análisis de sangre por ejemplo, se puede determinar el riesgo de un ataque cardiaco, y tomar las medidas oportunas para prevenirlo.
+
+Con este estudio se pretende poder solucionar el problema de ataques cardiacos no detectados o inesperados, pudiendo tomar medidas en casos complejos para poder reaccionar a tiempo, y así reducir el número de muertes por esta enfermedad.
+
+
+# 2. Intregación y selección de los datos
+
+En este apartado, se va a cargar el archivo a analizar y se va a hacer un pequeño resumen de las variables que se encuentran.
+
+```{r chunck1}
+#Lectura del fichero
+datos <- read.csv("heart.csv")
+head(datos)
+```
+
+Para el desarrollo de la práctica se empleará el dataset "heart.csv". La finalidad de la limpieza y el análisis es predecir la probabilidad de un paciente de sufir un infarto mediante la variable Output. Para comprobar la integridad del conjunto, primero se comprueban los tipos de los datos:
+
+```{r chunck2}
+#Resumen de los datos
+summary(datos)
+```
+
+Como se puede comprobar, todos los datos son numéricos. A priori no se puede descartar ningún atributo por no tener relevancia en el conjunto.
+
+# 3 Limpieza de los datos
+
+En el tercer apartado se va a llevar a cabo la limpieza del conjunto de datos, estudiando los valores nulos y los valores extremos
+
+## 3.1 Valores nulos o vacíos
+
+Para empezar, se va comprobar los elementos vacíos de cada variable:
+
+```{r chunck3}
+# Valores vacíos
+sapply(datos, function(x) sum(is.na(x)))
+```
+
+Como se puede ver en la ejecución obtenida, ninguna variable posee valores vacíos. Ahora se va a comprobar si alguna variable que no le corresponde posee valores nulos, solo se hará la comprobación sobre las siguientes 5 variables, ya que el resto de ellas pueden tomar valores nulos.
+
+```{r chunck4}
+#Valores nulos
+any(datos$age == 0)
+any(datos$trtbps == 0)
+any(datos$chol == 0)
+any(datos$thalachh == 0)
+any(datos$thall == 0)
+```
+
+Se puede ver que ninguna variable tiene valores nulos a excepción de **thall**, por lo que habrá que eliminar estos valores nulos.
+
+```{r chunck5}
+#Eliminación de valores nulos
+dim(datos)
+datos <- datos[!datos$thall==0,]
+dim(datos)
+```
+
+Quedan eliminados los dos valores que tenían valores a 0 en la variales **thall**.
+
+## 3.2 Valores extremos
+
+A continuación se muestran los valores extremos de los datos del conjunto:
+  
+  - Valores extremos del atributo **age**:
+  
+```{r chunk6}
+stats <- boxplot.stats(datos$age)
+extremos <- c(stats$out)
+print(extremos)
+```
+
+- Valores extremos del atributo **trtbps**:
+
+```{r chunk7}
+stats <- boxplot.stats(datos$trtbps)
+extremos <- c(stats$out)
+print(extremos)
+```
+
+- Valores extremos del atributo **chol**:
+
+```{r chunk8}
+stats <- boxplot.stats(datos$chol)
+extremos <- c(stats$out)
+print(extremos)
+```
+
+- Valores extremos del atributo **thalachh**:
+
+```{r chunk9}
+stats <- boxplot.stats(datos$thalachh)
+extremos <- c(stats$out)
+print(extremos)
+```
+
+- Valores extremos del atributo **oldpeak**:
+
+```{r chunk10}
+stats <- boxplot.stats(datos$oldpeak)
+extremos <- c(stats$out)
+print(extremos)
+```
+
+A continuación se muestran los valores extremos representados mediante diagramas de cajas y bigotes
+
+```{r chunk11}
+par(mfrow=c(2,3))
+
+boxplot(datos$age)
+mtext("age", side=3)
+
+boxplot(datos$trtbps)
+mtext("trtbps", side=3)
+
+boxplot(datos$chol)
+mtext("chol", side=3)
+
+boxplot(datos$thalachh)
+mtext("thalachh", side=3)
+
+boxplot(datos$oldpeak)
+mtext("oldpeak", side=3)
+```
+
+Como se puede comprobar tanto en los gráficos como en los valores extraidos, hay varios datos que se encuentran en los extremos de la distribución de datos. 
+
+Tras analizar cada caso individualmente, se comprueba que no es necesario modificar ni eliminar los registros que los contienen ya que, aunque sen valores que se alejan del punto medio de la distribución, son valores lógicos.
+
+Se convierte el conjunto definitivo a formato csv.
+
+```{r}
+write.csv(datos, "heart_clean.csv")
+```
+
+# 4 Análisis de los datos
+
+## 4.1. Selección de los grupos de datos a analizar
+
+La proporción de ataques al corazón entre hombres y mujeres no es necesariamente la misma. A menudo, los hombres tienen un mayor riesgo de sufrir un ataque al corazón que las mujeres. Sin embargo, esto puede variar dependiendo de factores como la edad, la raza y el estilo de vida. Con el paso del tiempo, el riesgo de sufrir un ataque al corazón en las mujeres se acerca al de los hombres. 
+
+Los datos de la Organización Mundial de la Salud muestran que, en general, la tasa de mortalidad por enfermedad coronaria (que incluye los ataques al corazón) es mayor en los hombres que en las mujeres en todas las edades. Pero, a medida que las mujeres envejecen, su riesgo de sufrir un ataque al corazón se aproxima al de los hombres. 
+
+Por lo tanto el conjunto se dividirá en uno de hombres y otro de mujeres.
+
+```{r chunck12}
+hombres <- subset(datos, sex == 1)
+mujeres <- subset(datos, sex == 0)
+
+print(head(hombres,4))
+print(head(mujeres,4))
+```
+
+En el conjunto, las proporciones de ataques al corazón son las siguientes:
+
+```{r chunk 13,fig.width=6, fig.height=3.5}
+par(mar=c(0,2,2,2))
+par(mfrow=c(1,2))
+# Calculamos la frecuencia de cada valor de "output" en cada conjunto de datos
+hombres_output_0 <- sum(hombres$output == 0)
+hombres_output_1 <- sum(hombres$output == 1)
+mujeres_output_0 <- sum(mujeres$output == 0)
+mujeres_output_1 <- sum(mujeres$output == 1)
+
+# Creamos el primer gráfico de sectores con los datos de hombres
+pie(c(hombres_output_0, hombres_output_1), main = "Hombres")
+legend("topleft", legend = c("No riesgo","Riesgo"),
+       fill =  c("white", "lightblue"),cex= 0.75)
+# Creamos el segundo gráfico de sectores con los datos de mujeres
+pie(c(mujeres_output_0, mujeres_output_1), main = "Mujeres")
+legend("topleft", legend = c("No riesgo","Riesgo"),
+       fill =  c("white", "lightblue"),cex= 0.75)
+```
+
+Aparentemente, a raíz de observar los gráficos, se puede decir que las mujeres tienen mayor probabilidad de tener ataques al corazón que los hombres.
+
+## 4.2. Comprobación de la normalidad y homogeneidad de la varianza.
+
+Para comprobar la normalidad de las distribuciones de las variables del dataset, teniendo en cuenta que el conjunto tiene una longitud relativamente corta (entorno a 300 muestras), se puede recurrir a la prueba de normalidad de Shapiro-Wilk. Se supondrá un nivel de significación de 0,05. Si el valor p obtenido del test es menor que el nivel de significación, entonces se puede rechazar la hipótesis nula y concluir que los datos no siguen una distribución normal.
+
+```{r chunck14}
+sapply(datos, function(x) shapiro.test(x)$p.value)
+```
+
+Se observa que el test de Shapiro-Wilk indica que las variables no siguen una distribución normal. Se va representar algunas de estas variables para comprobarlo.
+
+```{r chunk15, fig.width=6, fig.height=3}
+par(mar=c(0,2,2,2))
+par(mfrow=c(1,2))
+hist(datos$age)
+hist(datos$trtbps)
+par(mfrow=c(1,2))
+hist(datos$chol)
+hist(datos$thalachh)
+par(mfrow=c(1,2))
+hist(datos$oldpeak)
+hist(datos$caa)
+```
+
+Aunque parezca que alguna distribución de las variables **age, trtbps, chol y thalachh** sigan distribuciones normales, con el test de Shapiro-Wilk se confirma que no lo son.
+
+Para comprobar la homogeneidad de la varianza de dos grupos (hombres y mujeres) primero hay que tener en cuenta que las variables no están distribuidas normalmente. Una opción es recurrir al test de Fligner-Killeen. Si el valor p resultante de la prueba es mayor que el nivel de significación escogido, no es posible rechazar la hipótesis nula de que la varianza de los dos grupos de datos es igual.
+
+```{r chunck16}
+resultado <- fligner.test(hombres, mujeres)
+print(resultado)
+```
+
+El p-value tiene un valor de 2,2e-16, mucho menor que el nivel de significación escogido (0,05) por lo tanto se puede rechazar la hipótesis nula de que la varianza de los dos grupos de datos es igual.
+
+## 4.3 Pruebas estadísticas
+
+### 4.3.1 Variables más influyentes
+
+Para comenzar el apartado de las pruebas estadísticas, se va a llevar a cabo un estudio de las variables más determinantes e influyentes para poder predecir un ataque al corazón. Para ello, se va a realizar un análisis de correlación de las variables.
+
+En los apartados anteriores se ha observado que ninguna variable sigue una distribución normal, por lo que habrá que hacer uso del **coeficiente de correlación de Spearman** para llevar a cabo este análisis.
+
+Primero se va a hacer una pequeña visualización de la correlación entre todas las variables.
+
+```{r chunck17,fig.width=12, fig.height=6}
+#Análisis de correlación
+correlacion <- cor(datos,method="spearman")
+corrplot(correlacion, method = "number")
+```
+
+Una vez visto el gráfico, se van a observar las variables con una mayor correlación respecto a la variable **output**.
+
+```{r chunck18}
+#Análisis de correlación
+correlacion1 <- cor(datos,datos$output,method="spearman")
+print(correlacion1)
+```
+
+Con estos datos, se observa que no hay ninguna variable que destaque por encima del resto, en donde se encuentra que las variables más influyentes sobre la variable **output** son **cp**, **thalachh**, **exgn**, **oldpeak**, **caa** y **thall**.
+
+### 4.3.2 ¿Es mayor la probabilidad de ataque al corazón siendo mujer que siendo hombre?
+
+Siguiendo con la división de datos realizada en los apartados anteriores, se quiere aplicar un contraste de hipótesis sobre dos muestras, hombres y mujeres, para poder observar si la probabilidad de ataque al corazón es superior siendo mujer que siendo hombre
+
+Primero hay que hacer la división en los dos conjuntos de datos.
+
+```{r chunck19}
+#División de los datos
+hombres <- datos[datos$sex ==1,]$output
+mujeres <-datos[datos$sex ==0,]$output
+print(hombres)
+print(mujeres)
+```
+
+En segundo lugar, las muestras de datos que se van a utilizar deben tener un tamaño mayor a 30. Se comprueba si esto se cumple.
+
+```{r chunck20}
+#Comprobación de tamaño
+print(length(hombres))
+print(length(mujeres))
+```
+
+Con el tamaño mayor de 30, se puede hacer uso de un test paramétrico. 
+
+Con las comprobaciones pertinentes realizadas, se tiene un contraste de hipótesis no paramétrico de dos muestras independientes sobre la diferencia de medias.
+
+$$
+\begin{aligned}
+H_0 : \mu_1 = \mu_2 \\ 
+H_1 : \mu_1 > \mu_2
+\end{aligned}
+$$
+
+Se lleva a cabo el test no paramétrico de Wilcoxon, en donde se toma $\alpha$ = 0, 05.
+
+```{r chunck21}
+#Test paramétrico
+wilcox.test(mujeres,hombres)
+```
+
+En los resultados se puede observar que el p-value obtenido es  menor que el valor de significancia fijado, por lo que se rechaza la hipótesis nula.
+
+De esto se concluye que la **probalidad de ataque al corazón es mayor siendo mujer que siendo hombre**.
+
+### 4.3.3 Modelo de regresión lineal
+
+Como última prueba estadística de este análisis, se va a llevar a cabo el cálculo de un modelo de regresión lineal, con el objetivo de poder predecir si una persona tiene probabilidad de sufrir un ataque al corazón.
+
+Para ello se va a construir un modelo con todas las variables posibles, y en función de los resultados se irán revisando para construir el mejor modelo posible, con el mayor coeficiente de determinación.
+
+```{r chunck22}
+#Modelo de regresión lineal
+modelo1 <- lm(output  ~ age	+ sex	+ cp + trtbps + chol + fbs + restecg	
+              + thalachh + exng +	oldpeak +	slp +	caa +	thall ,data = datos)
+summary(modelo1)
+```
+
+Para el primer modelo se obtiene un $R^2 = 0.5$, pero se observa que hay varias variables que no aportan valor al modelo, por lo que se va a hacer un estudio de las variables más interesantes para este modelo.
+
+```{r chunck23}
+#Estudio de las mejores variables para el modelo
+step(object = modelo1, direction = "both", trace = 1)
+```
+
+Tras realizar un estudio de las mejores variables, se obtiene el modelo final.
+
+```{r chunck24}
+#Modelo de regresión lineal final
+modelo_final <- lm(output  ~ sex	+ cp + trtbps + restecg	
+              + thalachh + exng +	oldpeak +	slp +	caa +	thall ,data = datos)
+summary(modelo_final)
+```
+
+Con este nuevo modelo, el coeficiente de determinación, $R^2$, mejora muy poco, $R^2 = 0.5031$.
+
+Con el modelo final determinado, ahora se puede predecir la probabilidad de una persona de tener probabilidades de sufrir un ataque al corazón.
+
+```{r chunck25}
+#Predicción
+prediccion <- data.frame(
+sex = 1,
+cp = 0,
+trtbps = 127,
+restecg = 1,
+thalachh = 170,
+exng = 0,
+oldpeak = 0,
+slp = 1,
+caa = 0,
+thall = 2
+)
+
+prediccion1 <- data.frame(
+sex = 0,
+cp = 0,
+trtbps = 127,
+restecg = 1,
+thalachh = 170,
+exng = 0,
+oldpeak = 0,
+slp = 1,
+caa = 0,
+thall = 2
+)
+
+prediccion2 <- data.frame(
+sex = 1,
+cp = 0,
+trtbps = 127,
+restecg = 1,
+thalachh = 170,
+exng = 0,
+oldpeak = 3,
+slp = 1,
+caa = 0,
+thall = 2
+)
+
+prediccion3 <- data.frame(
+sex = 0,
+cp = 0,
+trtbps = 127,
+restecg = 1,
+thalachh = 170,
+exng = 0,
+oldpeak = 3,
+slp = 1,
+caa = 0,
+thall = 2
+)
+
+predict(modelo_final, prediccion)
+predict(modelo_final, prediccion1)
+predict(modelo_final, prediccion2)
+predict(modelo_final, prediccion3)
+```
+
+Tras realizar 4 predicciones con muestras de test diferentes, se puede concluir que el riesgo de ataque al corazón aumenta cuando el paciente es mujer y cuando el valor de oldpeak es menor.
+
+
+# 5 Resolución del problema
+
+Mediante el análisis se ha propuesto resolver tres cuestiones:
+  
+  - ¿Qué factores aumentan el riesgo de ataques al corazón?
+  - ¿Son hombres y mujeres igualmente propensos a padecer ataques al corazón?
+  - ¿Qué probabilidad tiene un paciente de sufrir un ataque al corazón?
+  
+  Para responder a la primera pregunta, primero se ha realizado un estudio sobre la normalidad de las variables del conjunto, sometiéndolas a un test de Shapiro-Wilk y representando sus distribuciones mediante histogramas. Al analizar las distribuciones, aparentemente las variables presentan distribuciones normales, pero el test confirma que no lo son. A continuación, se analiza que variables son las más influyentes sobre la variable de la salida mediante un análisis de correlación, estas son: **cp, thalachh, exgn, oldpeak, caa y thall**. 
+
+Para la segunda pregunta, se ha divido el conjunto original en dos subconjuntos, uno con todos los hombres y otro con todas las mujeres. Primero se ha observado la proporción de pacientes con riesgo de ataque al corazón es superior dentro de las mujeres que dentro de los hombres. A continuación, se someten ambos conjuntos a un test de  Fligner-Killeen con la finalidad de comprobar la homogeneidad de sus varianzas. Tras analizar los resultados del test, se confirma que no son iguales. Posteriormente, teniendo en cuenta las condiciones de no normalidad y no homocedasticidad, se aplica a los conjuntos el test no paramétrico de Wilcoxon, obtenidndo que la probalidad de ataque al corazón es mayor siendo mujer que siendo hombre.
+
+Tratando la tercera cuestión, se ha creado un modelo de regresión lineal. Tras el primer modelado, se han encontrado ciertas variables que no aportan información al modelo, manteniendo en el modelo definitivo la variable a predecir (output) y las variables **sex, cp, trtbps, restecg, thalachh, exng, oldpeak, slp, caa y thall**. Con este modelo se obtiene un coeficiente de determinación de 0,5031. Tras realizar 4 predicciones con muestras de test diferentes, se puede concluir que el riesgo de ataque al corazón aumenta cuando el paciente es mujer y cuando el valor de oldpeak es menor.
+
+# 6 Contribuciones al trabajo
+
+| Contribuciones              | Firma                                                 |
+|-----------------------------|-------------------------------------------------------|
+| Investigación Previa | Mario García Puebla, Antonio García-Bustamante Usano | 
+| Redacción de las respuestas | Mario García Puebla, Antonio García-Bustamante Usano  | 
+| Desarrollo del código | Mario García Puebla, Antonio García-Bustamante Usano  | 
+| Participación en el video | Mario García Puebla, Antonio García-Bustamante Usano  | 
