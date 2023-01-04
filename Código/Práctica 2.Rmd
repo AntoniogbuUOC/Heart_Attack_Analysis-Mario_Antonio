@@ -484,4 +484,4 @@ Tratando la tercera cuestión, se ha creado un modelo de regresión lineal. Tras
 | Investigación Previa | Mario García Puebla, Antonio García-Bustamante Usano | 
 | Redacción de las respuestas | Mario García Puebla, Antonio García-Bustamante Usano  | 
 | Desarrollo del código | Mario García Puebla, Antonio García-Bustamante Usano  | 
-| Participación en el video | Mario García Puebla, Antonio García-Bustamante Usano  | 
+| Participación en el video | Mario García Puebla, Antonio García-Bustamante Usano  |
